@@ -2,101 +2,197 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>Ping Pong</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Ping Pong Réaliste</title>
 
 <style>
-    body {
-        background: #111;
-        color: white;
-        text-align: center;
-        font-family: Arial;
-    }
-    canvas {
-        background: black;
-        border: 3px solid white;
-        display: block;
-        margin: auto;
-    }
+html, body {
+    margin: 0;
+    padding: 0;
+    background: radial-gradient(circle at top, #1a2a3a, #000);
+    overflow: hidden;
+    font-family: Arial, sans-serif;
+    color: white;
+}
+
+canvas {
+    display: block;
+    margin: auto;
+    background: linear-gradient(#0b3d2e, #04251c);
+    box-shadow: 0 0 30px rgba(0,255,200,0.4);
+}
+
+/* UI */
+#ui {
+    position: absolute;
+    top: 10px;
+    width: 100%;
+    text-align: center;
+    font-size: 18px;
+}
+
+#gameOver {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+}
+
+#gameOver button {
+    margin-top: 20px;
+    padding: 14px 34px;
+    font-size: 18px;
+    background: #00ffd5;
+    border: none;
+    border-radius: 30px;
+    cursor: pointer;
+}
 </style>
 </head>
 
 <body>
 
-<h1>🏓 Ping Pong</h1>
-<p>⬆️ ⬇️ pour jouer</p>
-<canvas id="game" width="600" height="400"></canvas>
+<div id="ui">
+    🏆 Best: <span id="best">0</span> | 🎯 Score: <span id="score">0</span>
+</div>
+
+<canvas id="game"></canvas>
+
+<div id="gameOver">
+    <h1>💥 Game Over</h1>
+    <button onclick="restart()">🔄 Rejouer</button>
+</div>
+
+<!-- Sons -->
+<audio id="hit" src="https://assets.mixkit.co/sfx/preview/mixkit-arcade-game-jump-coin-216.wav"></audio>
+<audio id="lose" src="https://assets.mixkit.co/sfx/preview/mixkit-retro-arcade-game-over-470.wav"></audio>
+<audio id="bgm" src="https://assets.mixkit.co/music/preview/mixkit-tech-house-vibes-130.mp3" loop></audio>
 
 <script>
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
-let paddleHeight = 80;
-let paddleWidth = 10;
+function resize(){
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener("resize", resize);
 
-let playerY = canvas.height / 2 - paddleHeight / 2;
-let aiY = playerY;
+let paddleW = 140;
+let paddleH = 18;
 
-let ballX = canvas.width / 2;
-let ballY = canvas.height / 2;
-let ballSpeedX = 4;
-let ballSpeedY = 4;
+let player, ai, ball;
+let score = 0;
+let best = localStorage.getItem("pongBest") || 0;
+document.getElementById("best").innerText = best;
 
-document.addEventListener("keydown", move);
+function init(){
+    player = { x: canvas.width/2 - paddleW/2, y: canvas.height - 40 };
+    ai = { x: canvas.width/2 - paddleW/2, y: 30 };
+    ball = {
+        x: canvas.width/2,
+        y: canvas.height/2,
+        r: 10,
+        dx: 5,
+        dy: 5
+    };
+    score = 0;
+    document.getElementById("score").innerText = score;
+    document.getElementById("gameOver").style.display = "none";
+    document.getElementById("bgm").volume = 0.4;
+    document.getElementById("bgm").play();
+}
+init();
 
-function move(e) {
-    if (e.keyCode === 38) playerY -= 20;
-    if (e.keyCode === 40) playerY += 20;
+function drawPaddle(p){
+    ctx.fillStyle = "#00ffd5";
+    ctx.shadowColor = "#00ffd5";
+    ctx.shadowBlur = 15;
+    ctx.fillRect(p.x, p.y, paddleW, paddleH);
 }
 
-function drawRect(x, y, w, h, color) {
-    ctx.fillStyle = color;
-    ctx.fillRect(x, y, w, h);
-}
-
-function drawBall(x, y, r) {
+function drawBall(){
     ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fillStyle = "white";
+    ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI*2);
+    ctx.fillStyle = "#fff";
+    ctx.shadowBlur = 20;
     ctx.fill();
 }
 
-function game() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+function update(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
 
-    drawRect(0, playerY, paddleWidth, paddleHeight, "white");
-    drawRect(canvas.width - paddleWidth, aiY, paddleWidth, paddleHeight, "white");
-    drawBall(ballX, ballY, 8);
+    drawPaddle(player);
+    drawPaddle(ai);
+    drawBall();
 
-    ballX += ballSpeedX;
-    ballY += ballSpeedY;
+    ball.x += ball.dx;
+    ball.y += ball.dy;
 
-    aiY += (ballY - (aiY + paddleHeight / 2)) * 0.05;
-
-    if (ballY <= 0 || ballY >= canvas.height) ballSpeedY = -ballSpeedY;
-
-    if (
-        ballX <= paddleWidth &&
-        ballY > playerY &&
-        ballY < playerY + paddleHeight
-    ) {
-        ballSpeedX = -ballSpeedX;
+    // Mur
+    if(ball.x < ball.r || ball.x > canvas.width - ball.r){
+        ball.dx *= -1;
+        document.getElementById("hit").play();
     }
 
-    if (
-        ballX >= canvas.width - paddleWidth &&
-        ballY > aiY &&
-        ballY < aiY + paddleHeight
-    ) {
-        ballSpeedX = -ballSpeedX;
+    // Raquette joueur
+    if(ball.y + ball.r > player.y &&
+       ball.x > player.x && ball.x < player.x + paddleW){
+        ball.dy *= -1.05;
+        score++;
+        document.getElementById("score").innerText = score;
+        document.getElementById("hit").play();
     }
 
-    if (ballX < 0 || ballX > canvas.width) {
-        ballX = canvas.width / 2;
-        ballY = canvas.height / 2;
+    // Raquette IA
+    if(ball.y - ball.r < ai.y + paddleH &&
+       ball.x > ai.x && ball.x < ai.x + paddleW){
+        ball.dy *= -1.05;
+        document.getElementById("hit").play();
+    }
+
+    // IA simple mais fluide
+    ai.x += (ball.x - (ai.x + paddleW/2)) * 0.08;
+
+    // Game over
+    if(ball.y > canvas.height){
+        endGame();
     }
 }
 
-setInterval(game, 20);
+function endGame(){
+    document.getElementById("bgm").pause();
+    document.getElementById("lose").play();
+    document.getElementById("gameOver").style.display = "flex";
+    if(score > best){
+        best = score;
+        localStorage.setItem("pongBest", best);
+        document.getElementById("best").innerText = best;
+    }
+}
+
+function restart(){
+    init();
+}
+
+// Contrôle tactile & souris
+function movePaddle(x){
+    player.x = x - paddleW/2;
+    if(player.x < 0) player.x = 0;
+    if(player.x + paddleW > canvas.width) player.x = canvas.width - paddleW;
+}
+
+canvas.addEventListener("mousemove", e => movePaddle(e.clientX));
+canvas.addEventListener("touchmove", e => {
+    e.preventDefault();
+    movePaddle(e.touches[0].clientX);
+},{passive:false});
+
+setInterval(update, 16);
 </script>
 
 </body>
