@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Ping Pong</title>
+
+<style>
+    body {
+        background: #111;
+        color: white;
+        text-align: center;
+        font-family: Arial;
+    }
+    canvas {
+        background: black;
+        border: 3px solid white;
+        display: block;
+        margin: auto;
+    }
+</style>
+</head>
+
+<body>
+
+<h1>🏓 Ping Pong</h1>
+<p>⬆️ ⬇️ pour jouer</p>
+<canvas id="game" width="600" height="400"></canvas>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+let paddleHeight = 80;
+let paddleWidth = 10;
+
+let playerY = canvas.height / 2 - paddleHeight / 2;
+let aiY = playerY;
+
+let ballX = canvas.width / 2;
+let ballY = canvas.height / 2;
+let ballSpeedX = 4;
+let ballSpeedY = 4;
+
+document.addEventListener("keydown", move);
+
+function move(e) {
+    if (e.keyCode === 38) playerY -= 20;
+    if (e.keyCode === 40) playerY += 20;
+}
+
+function drawRect(x, y, w, h, color) {
+    ctx.fillStyle = color;
+    ctx.fillRect(x, y, w, h);
+}
+
+function drawBall(x, y, r) {
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fillStyle = "white";
+    ctx.fill();
+}
+
+function game() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    drawRect(0, playerY, paddleWidth, paddleHeight, "white");
+    drawRect(canvas.width - paddleWidth, aiY, paddleWidth, paddleHeight, "white");
+    drawBall(ballX, ballY, 8);
+
+    ballX += ballSpeedX;
+    ballY += ballSpeedY;
+
+    aiY += (ballY - (aiY + paddleHeight / 2)) * 0.05;
+
+    if (ballY <= 0 || ballY >= canvas.height) ballSpeedY = -ballSpeedY;
+
+    if (
+        ballX <= paddleWidth &&
+        ballY > playerY &&
+        ballY < playerY + paddleHeight
+    ) {
+        ballSpeedX = -ballSpeedX;
+    }
+
+    if (
+        ballX >= canvas.width - paddleWidth &&
+        ballY > aiY &&
+        ballY < aiY + paddleHeight
+    ) {
+        ballSpeedX = -ballSpeedX;
+    }
+
+    if (ballX < 0 || ballX > canvas.width) {
+        ballX = canvas.width / 2;
+        ballY = canvas.height / 2;
+    }
+}
+
+setInterval(game, 20);
+</script>
+
+</body>
+</html>
